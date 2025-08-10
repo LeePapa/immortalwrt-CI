@@ -162,7 +162,6 @@ jobs:
         run: |
           cd ./wrt/
           
-          make defconfig -j$(nproc) && make clean -j$(nproc)
           
           if [[ "${WRT_CONFIG,,}" == *"test"* ]]; then
             cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt >> .config
@@ -172,6 +171,7 @@ jobs:
 
           $GITHUB_WORKSPACE/Scripts/Settings.sh
           
+          make defconfig -j$(nproc) && make clean -j$(nproc)
 
       - name: Download Packages
         if: env.WRT_TEST != 'true'
