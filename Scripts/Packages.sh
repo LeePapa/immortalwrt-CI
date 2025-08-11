@@ -35,6 +35,8 @@ UPDATE_PACKAGE() {
 	if [[ "$PKG_SPECIAL" == "pkg" ]]; then
 		find ./$REPO_NAME/*/ -maxdepth 3 -type d -iname "*$PKG_NAME*" -prune -exec cp -rf {} ./ \;
   		echo "66666666666666666666666"
+		pwd
+  		echo "666666"
 		ls
 		rm -rf ./$REPO_NAME/
 	elif [[ "$PKG_SPECIAL" == "name" ]]; then
