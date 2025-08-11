@@ -34,6 +34,7 @@ UPDATE_PACKAGE() {
 	# 处理克隆的仓库
 	if [[ "$PKG_SPECIAL" == "pkg" ]]; then
 		find ./$REPO_NAME/*/ -maxdepth 3 -type d -iname "*$PKG_NAME*" -prune -exec cp -rf {} ./ \;
+  		find ./$REPO_NAME/*/ -maxdepth 3 -type d -iname "*$PKG_NAME*" -prune -exec echo {} ./ \;
   		echo "66666666666666666666666"
 		echo $PKG_NAME
 		rm -rf ./$REPO_NAME/
