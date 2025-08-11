@@ -40,6 +40,7 @@ UPDATE_PACKAGE() {
 		rm -rf ./$REPO_NAME/
 	elif [[ "$PKG_SPECIAL" == "name" ]]; then
 		mv -f $REPO_NAME $PKG_NAME
+  		echo "7777777777777777"
   		echo $REPO_NAME
 		echo $PKG_NAME
 	fi
