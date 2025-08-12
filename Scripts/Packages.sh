@@ -34,16 +34,9 @@ UPDATE_PACKAGE() {
 	# 处理克隆的仓库
 	if [[ "$PKG_SPECIAL" == "pkg" ]]; then
 		find ./$REPO_NAME/*/ -maxdepth 3 -type d -iname "*$PKG_NAME*" -prune -exec cp -rf {} ./ \;
-  		echo "66666666666666666666666"
-		pwd
-  		echo "666666"
-		ls
 		rm -rf ./$REPO_NAME/
 	elif [[ "$PKG_SPECIAL" == "name" ]]; then
 		mv -f $REPO_NAME $PKG_NAME
-  		echo "7777777777777777"
-  		echo $REPO_NAME
-		echo $PKG_NAME
 	fi
 }
 
@@ -124,9 +117,9 @@ UPDATE_VERSION "tailscale"
 
 
 # 自动注释掉子目录 luci-app-passwall2/Makefile 中安装 qrcode.min.js 的语句
-if [ -f "./luci-app-passwall2/Makefile" ]; then
-  sed -i '/qrcode\.min\.js/s/^/#/' ./luci-app-passwall2/Makefile
-  echo "已自动注释 luci-app-passwall2/Makefile 安装 qrcode.min.js 的语句，避免文件冲突。"
-else
-  echo "未找到 luci-app-passwall2/Makefile，请确认当前目录正确。"
-fi
+#if [ -f "./luci-app-passwall2/Makefile" ]; then
+#  sed -i '/qrcode\.min\.js/s/^/#/' ./luci-app-passwall2/Makefile
+#  echo "已自动注释 luci-app-passwall2/Makefile 安装 qrcode.min.js 的语句，避免文件冲突。"
+#else
+#  echo "未找到 luci-app-passwall2/Makefile，请确认当前目录正确。"
+#fi
