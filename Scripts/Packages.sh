@@ -121,3 +121,12 @@ UPDATE_VERSION() {
 #UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
 UPDATE_VERSION "sing-box"
 UPDATE_VERSION "tailscale"
+
+
+# 自动注释掉子目录 luci-app-passwall/Makefile 中安装 qrcode.min.js 的语句
+if [ -f "./luci-app-passwall/Makefile" ]; then
+  sed -i '/qrcode\.min\.js/s/^/#/' ./luci-app-passwall/Makefile
+  echo "已自动注释 luci-app-passwall/Makefile 安装 qrcode.min.js 的语句，避免文件冲突。"
+else
+  echo "未找到 luci-app-passwall/Makefile，请确认当前目录正确。"
+fi
