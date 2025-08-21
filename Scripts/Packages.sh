@@ -131,3 +131,6 @@ UPDATE_VERSION "tailscale"
 #  echo "未找到 luci-app-passwall2/Makefile，请确认当前目录正确。"
 #fi
 sed -i 's@include ../../lang/rust/rust-package.mk@include ../lang/rust/rust-package.mk@g' openwrt-smartdns/Makefile
+echo "==== package/openwrt-smartdns/Makefile 内容如下 ===="
+cat package/openwrt-smartdns/Makefile
+echo "==== Makefile 内容结束 ===="
