@@ -40,6 +40,30 @@ UPDATE_PACKAGE() {
 	fi
 }
 
+#删除软件包
+DELETE_PACKAGE() {
+	local PKG_NAME=$1
+
+	echo " "
+
+	# 删除本地可能存在的不同名称的软件包
+			# 查找匹配的目录
+		echo "Search directory: $PKG_NAME"
+		local FOUND_DIRS=$(find ../feeds/luci/ ../feeds/packages/ -maxdepth 3 -type d -iname "*$PKG_NAME*" 2>/dev/null)
+
+		# 删除找到的目录
+		if [ -n "$FOUND_DIRS" ]; then
+			while read -r DIR; do
+				rm -rf "$DIR"
+				echo "Delete directory: $DIR"
+			done <<< "$FOUND_DIRS"
+		else
+			echo "Not fonud directory: $PKG_NAME"
+		fi
+}
+
+
+
 # 调用示例
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
@@ -70,9 +94,9 @@ UPDATE_PACKAGE "qbittorrent" "sbwml/luci-app-qbittorrent" "master" "" "qt6base q
 UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
 UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "luci-app-timewol luci-app-wolplus"
 UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
-UPDATE_PACKAGE "smartdns" "xianren78/openwrt-smartdns" "master"
+#UPDATE_PACKAGE "smartdns" "xianren78/openwrt-smartdns" "master"
 UPDATE_PACKAGE "luci-app-smartdns" "pymumu/luci-app-smartdns" "master"
-
+DELETE_PACKAGE "smartdns"
 
 
 
@@ -130,9 +154,19 @@ UPDATE_VERSION "tailscale"
 #else
 #  echo "未找到 luci-app-passwall2/Makefile，请确认当前目录正确。"
 #fi
-sed -i 's@include ../../lang/rust/rust-package.mk@include ../../feeds/packages/lang/rust/rust-package.mk@g' openwrt-smartdns/Makefile
-echo "==== openwrt-smartdns/Makefile 内容如下 ===="
-cat openwrt-smartdns/Makefile
-echo "==== Makefile 内容结束 ===="
-ls ../feeds/packages/
-echo "==== ls 内容结束 ===="
+#sed -i 's@include ../../lang/rust/rust-package.mk@include ../../feeds/packages/lang/rust/rust-package.mk@g' openwrt-smartdns/Makefile
+#echo "==== openwrt-smartdns/Makefile 内容如下 ===="
+#cat openwrt-smartdns/Makefile
+#echo "==== Makefile 内容结束 ===="
+#ls ../feeds/packages/
+#echo "==== ls 内容结束 ===="
+
+echo "==== SmartDns 处理 ===="
+WORKINGDIR="`pwd`/feeds/packages/net/smartdns"
+mkdir $WORKINGDIR -p
+rm $WORKINGDIR/* -fr
+wget https://github.com/pymumu/openwrt-smartdns/archive/master.zip -O $WORKINGDIR/master.zip
+unzip $WORKINGDIR/master.zip -d $WORKINGDIR
+mv $WORKINGDIR/openwrt-smartdns-master/* $WORKINGDIR/
+rmdir $WORKINGDIR/openwrt-smartdns-master
+rm $WORKINGDIR/master.zip
