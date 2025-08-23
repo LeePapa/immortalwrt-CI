@@ -183,7 +183,7 @@ else
 fi
 rm $WORKINGDIR/master.zip
 echo "PKG_HASH 已自动更新为：$HASH"
-
+./scripts/feeds install package -a
 
 
 
