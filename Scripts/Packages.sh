@@ -134,5 +134,5 @@ sed -i 's@include ../../lang/rust/rust-package.mk@include ../feeds/packages/lang
 echo "==== openwrt-smartdns/Makefile 内容如下 ===="
 cat openwrt-smartdns/Makefile
 echo "==== Makefile 内容结束 ===="
-ls ../feeds/
+ls ../feeds/packages/
 echo "==== ls 内容结束 ===="
