@@ -96,7 +96,7 @@ UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "luci-app-timewol luci-ap
 UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
 #UPDATE_PACKAGE "smartdns" "xianren78/openwrt-smartdns" "master"
 UPDATE_PACKAGE "luci-app-smartdns" "pymumu/luci-app-smartdns" "master"
-DELETE_PACKAGE "smartdns"
+#DELETE_PACKAGE "smartdns"
 
 
 
