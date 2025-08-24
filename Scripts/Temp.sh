@@ -1,5 +1,7 @@
 echo "==== SmartDns 处理 ===="
 WORKINGDIR="`pwd`/feeds/packages/net/smartdns"
+echo "==== 输出路径 ===="
+echo $WORKINGDIR
 mkdir -p $WORKINGDIR
 rm -fr $WORKINGDIR/*
 wget https://github.com/xianren78/openwrt-smartdns/archive/master.zip -O $WORKINGDIR/master.zip
