@@ -6,6 +6,9 @@ echo "==== ls路径结束 ===="
 echo "==== Cat Makefile ===="
 cat $WORKINGDIR/Makefile
 echo "==== Cat Makefile End===="
+echo "==== Tree ===="
+tree $WORKINGDIR
+echo "==== Tree End===="
 mkdir -p $WORKINGDIR
 rm -fr $WORKINGDIR/*
 wget https://github.com/xianren78/openwrt-smartdns/archive/master.zip -O $WORKINGDIR/master.zip
