@@ -8,6 +8,7 @@ cat $WORKINGDIR/Makefile
 echo "==== Cat Makefile End===="
 echo "==== Tree ===="
 pwd
+echo $GITHUB_WORKSPACE
 tree -L 2 ../
 echo "==== Tree End===="
 mkdir -p $WORKINGDIR
