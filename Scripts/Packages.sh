@@ -161,3 +161,9 @@ UPDATE_VERSION "tailscale"
 #ls ../feeds/packages/
 #echo "==== ls 内容结束 ===="
 
+echo "==== Tree ===="
+pwd
+echo $GITHUB_WORKSPACE
+ls
+tree -L 2 ./
+echo "==== Tree End===="
