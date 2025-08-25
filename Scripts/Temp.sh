@@ -1,17 +1,5 @@
 echo "==== SmartDns 处理 ===="
 WORKINGDIR="`pwd`/feeds/packages/net/smartdns"
-echo "==== ls路径 ===="
-ls $WORKINGDIR
-echo "==== ls路径结束 ===="
-echo "==== Cat Makefile ===="
-cat $WORKINGDIR/Makefile
-echo "==== Cat Makefile End===="
-echo "==== Tree ===="
-pwd
-echo $GITHUB_WORKSPACE
-ls
-tree -L 2 ./
-echo "==== Tree End===="
 mkdir -p $WORKINGDIR
 rm -fr $WORKINGDIR/*
 wget https://github.com/xianren78/openwrt-smartdns/archive/master.zip -O $WORKINGDIR/master.zip
@@ -32,3 +20,15 @@ else
 fi
 rm $WORKINGDIR/master.zip
 echo "PKG_HASH 已自动更新为：$HASH"
+echo "==== ls路径 ===="
+ls $WORKINGDIR
+echo "==== ls路径结束 ===="
+echo "==== Cat Makefile ===="
+cat $WORKINGDIR/Makefile
+echo "==== Cat Makefile End===="
+echo "==== Tree ===="
+pwd
+echo $GITHUB_WORKSPACE
+ls
+tree -L 2 ./
+echo "==== Tree End===="
