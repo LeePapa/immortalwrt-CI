@@ -7,7 +7,7 @@ echo "==== Cat Makefile ===="
 cat $WORKINGDIR/Makefile
 echo "==== Cat Makefile End===="
 echo "==== Tree ===="
-tree ../
+ls ../
 echo "==== Tree End===="
 mkdir -p $WORKINGDIR
 rm -fr $WORKINGDIR/*
