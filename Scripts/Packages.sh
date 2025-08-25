@@ -164,6 +164,8 @@ UPDATE_VERSION "tailscale"
 echo "==== Tree ===="
 pwd
 echo $GITHUB_WORKSPACE
-ls ../
-tree -L 3 ./feeds/
+ls ../feeds/packages/net/smartdns
+tree -L 2 ./feeds/packages/net/smartdns/
+echo "==== Tree End===="
+tree -L 2../feeds/packages/net/smartdns
 echo "==== Tree End===="
