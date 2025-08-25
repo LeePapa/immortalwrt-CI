@@ -164,6 +164,6 @@ UPDATE_VERSION "tailscale"
 echo "==== Tree ===="
 pwd
 echo $GITHUB_WORKSPACE
-ls
-tree -L 2 ./
+ls ../
+tree -L 3 ./feeds/
 echo "==== Tree End===="
