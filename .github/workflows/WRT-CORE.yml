@@ -147,8 +147,9 @@ jobs:
       - name: Update Feeds
         run: |
           cd ./wrt/
-          $GITHUB_WORKSPACE/Scripts/Temp.sh
+          
           ./scripts/feeds update -a
+          $GITHUB_WORKSPACE/Scripts/Temp.sh
           ./scripts/feeds install -a
 
       - name: Custom Packages
