@@ -19,8 +19,8 @@ MAKEFILE="$WORKINGDIR/Makefile"
 #    sed -i "/^PKG_SOURCE_URL\|^PKG_VERSION/a PKG_HASH:=$HASH" "$MAKEFILE"
 #fi
 
-sed -i -E 's/^([[:space:]]*)(PKG_MIRROR_HASH[[:space:]]*=)/\1#\2/' "$MAKEFILE"
-
+#sed -i -E 's/^([[:space:]]*)(PKG_MIRROR_HASH[[:space:]]*=)/\1#\2/' "$MAKEFILE"
+sed -i '/PKG_MIRROR_HASH/s/^\( *\)/\1#/' "$MAKEFILE"
 rm $WORKINGDIR/master.zip
 #echo "PKG_HASH 已自动更新为：$HASH"
 echo "PKG_HASH 已注释"
