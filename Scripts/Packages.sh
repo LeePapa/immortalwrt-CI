@@ -167,5 +167,8 @@ echo $GITHUB_WORKSPACE
 ls ../feeds/packages/net/smartdns
 tree -L 2 ./feeds/packages/net/smartdns/
 echo "==== Tree End===="
-tree -L 2../feeds/packages/net/smartdns
+tree -L 2 ../feeds/packages/net/smartdns
 echo "==== Tree End===="
+echo "==== Cat Makefile ===="
+cat ../feeds/packages/net/smartdns/Makefile
+echo "==== Cat Makefile End===="
