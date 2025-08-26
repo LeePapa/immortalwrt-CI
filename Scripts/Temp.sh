@@ -8,18 +8,22 @@ mv $WORKINGDIR/openwrt-smartdns-master/* $WORKINGDIR/
 rmdir $WORKINGDIR/openwrt-smartdns-master
 
 # 自动计算源码包哈希
-HASH=$(sha256sum "$WORKINGDIR/master.zip" | awk '{print $1}')
+#HASH=$(sha256sum "$WORKINGDIR/master.zip" | awk '{print $1}')
 
 # 修改 Makefile 里的 PKG_HASH
 MAKEFILE="$WORKINGDIR/Makefile"
-if grep -q "^PKG_HASH:=" "$MAKEFILE"; then
-    sed -i "s/^PKG_HASH:=.*/PKG_HASH:=$HASH/" "$MAKEFILE"
-else
-    # 在 PKG_SOURCE_URL 或 PKG_VERSION 之后添加 PKG_HASH
-    sed -i "/^PKG_SOURCE_URL\|^PKG_VERSION/a PKG_HASH:=$HASH" "$MAKEFILE"
-fi
+#if grep -q "^PKG_HASH:=" "$MAKEFILE"; then
+#    sed -i "s/^PKG_HASH:=.*/PKG_HASH:=$HASH/" "$MAKEFILE"
+#else
+#    # 在 PKG_SOURCE_URL 或 PKG_VERSION 之后添加 PKG_HASH
+#    sed -i "/^PKG_SOURCE_URL\|^PKG_VERSION/a PKG_HASH:=$HASH" "$MAKEFILE"
+#fi
+
+sed -i -E 's/^([[:space:]]*)(PKG_MIRROR_HASH[[:space:]]*=)/\1#\2/' "$MAKEFILE"
+
 rm $WORKINGDIR/master.zip
-echo "PKG_HASH 已自动更新为：$HASH"
+#echo "PKG_HASH 已自动更新为：$HASH"
+echo "PKG_HASH 已注释"
 echo "==== ls路径 ===="
 ls $WORKINGDIR
 echo "==== ls路径结束 ===="
