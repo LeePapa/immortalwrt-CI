@@ -1,0 +1,471 @@
+name: OWRT-ALL with SmartDNS
+
+on:
+  workflow_run:
+    workflows: ["Auto-Clean"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      PACKAGE:
+        description: '手动调整插件包，多个请用\n符号隔开。'
+        required: false
+        type: string
+      TEST:
+        description: '仅输出配置文件，不编译固件。'
+        default: 'false'
+        required: false
+        type: boolean
+
+permissions: write-all
+
+jobs:
+  get-smartdns-version:
+    runs-on: ubuntu-latest
+    outputs:
+      CUR_VERSION: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Clone smartdns repo and extract version
+        run: |
+          git clone https://github.com/xianren78/openwrt-smartdns.git smartdns-repo
+          cd smartdns-repo
+          if [ -f Makefile ]; then
+            VERSION=$(grep "^PKG_VERSION:=" Makefile | cut -d'=' -f2 | tr -d '[:space:]' || echo 'unknown')
+          else
+            VERSION="unknown"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+        id: version
+
+  build-firmware:
+    needs: get-smartdns-version
+    strategy:
+      fail-fast: false
+      matrix:
+        CONFIG: [MEDIATEK, ROCKCHIP, X86]
+        SOURCE: [VIKINGYFY/immortalwrt]
+        BRANCH: [owrt]
+        include:
+          - CONFIG: X86
+            arch: x86_64
+            target: x86
+            subtarget: 64
+            package_arch: x86_64
+            goarch: x86_64
+            docker_tag: x86-64
+            rust_target: x86_64-unknown-linux-musl
+          - CONFIG: MEDIATEK
+            arch: aarch64
+            target: armsr
+            subtarget: armv8
+            package_arch: aarch64_generic
+            goarch: aarch64
+            docker_tag: aarch64_generic
+            rust_target: aarch64-unknown-linux-musl
+          - CONFIG: ROCKCHIP
+            arch: aarch64
+            target: armsr
+            subtarget: armv8
+            package_arch: aarch64_generic
+            goarch: aarch64
+            docker_tag: aarch64_generic
+            rust_target: aarch64-unknown-linux-musl
+    runs-on: ubuntu-latest
+    env:
+      WRT_CONFIG: ${{ matrix.CONFIG }}
+      WRT_THEME: argon
+      WRT_NAME: OWRT
+      WRT_SSID: OWRT
+      WRT_WORD: 12345678
+      WRT_IP: 192.168.10.1
+      WRT_PW: 无
+      WRT_REPO: https://github.com/${{ matrix.SOURCE }}.git
+      WRT_BRANCH: ${{ matrix.BRANCH }}
+      WRT_SOURCE: ${{ matrix.SOURCE }}
+      WRT_PACKAGE: ${{ inputs.PACKAGE }}
+      WRT_TEST: ${{ inputs.TEST }}
+      ARCH: ${{ matrix.arch }}
+      GOARCH: ${{ matrix.goarch }}
+      PKG_VERSION: ${{ needs.get-smartdns-version.outputs.CUR_VERSION }}
+
+    steps:
+      - name: Checkout Projects
+        uses: actions/checkout@main
+
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt -yqq purge firefox
+          sudo -E apt -yqq update
+          sudo -E apt -yqq full-upgrade
+          sudo -E apt -yqq autoremove --purge
+          sudo -E apt -yqq autoclean
+          sudo -E apt -yqq clean
+          sudo -E apt -yqq install dos2unix python3-netifaces libfuse-dev \
+            build-essential ccache git file g++ gawk gettext libncurses-dev \
+            libssl-dev zlib1g-dev zstd docker-ce docker-ce-cli
+          sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          sudo -E systemctl daemon-reload
+          sudo -E timedatectl set-timezone "Asia/Shanghai"
+          sudo systemctl start docker
+
+          sudo mkdir -p /mnt/build_wrt
+          sudo chown $USER:$USER /mnt/build_wrt
+          sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
+
+      - name: Initialization Values
+        run: |
+          echo "WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d-%H.%M.%S")" >> $GITHUB_ENV
+          echo "WRT_MARK=${GITHUB_REPOSITORY%%/*}" >> $GITHUB_ENV
+          echo "WRT_INFO=${WRT_SOURCE%%/*}" >> $GITHUB_ENV
+          echo "WRT_TARGET=$(grep -m 1 -oP '^CONFIG_TARGET_\K[\w]+(?=\=y)' ./Config/$WRT_CONFIG.txt)" >> $GITHUB_ENV
+          echo "WRT_KVER=none" >> $GITHUB_ENV
+          echo "WRT_LIST=none" >> $GITHUB_ENV
+
+      - name: Clone Code
+        run: |
+          git clone --depth=1 --single-branch --branch $WRT_BRANCH $WRT_REPO ./wrt/
+          cd ./wrt/ && echo "WRT_HASH=$(git log -1 --pretty=format:'%h')" >> $GITHUB_ENV
+
+          # 移除国内下载源
+          PROJECT_MIRRORS_FILE="./scripts/projectsmirrors.json"
+          if [ -f "$PROJECT_MIRRORS_FILE" ]; then
+            sed -i '/.cn\//d; /tencent/d; /aliyun/d' "$PROJECT_MIRRORS_FILE"
+          fi
+
+      - name: Check Scripts
+        run: |
+          find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
+
+      - name: Check Caches
+        id: check-cache
+        if: env.WRT_TEST != 'true'
+        uses: actions/cache@main
+        with:
+          key: ${{ env.WRT_CONFIG }}-${{ env.WRT_INFO }}-${{ env.WRT_HASH }}
+          restore-keys: ${{ env.WRT_CONFIG }}-${{ env.WRT_INFO }}
+          path: |
+            ./wrt/.ccache
+            ./wrt/staging_dir/host*
+            ./wrt/staging_dir/tool*
+
+      - name: Update Caches
+        if: env.WRT_TEST != 'true'
+        run: |
+          if [ -d "./wrt/staging_dir" ]; then
+            find "./wrt/staging_dir" -type d -name "stamp" -not -path "*target*" | while read -r DIR; do
+              find "$DIR" -type f -exec touch {} +
+            done
+            mkdir -p ./wrt/tmp && echo "1" > ./wrt/tmp/.build
+            echo "toolchain skiped done!"
+          else
+            echo "caches missed!"
+          fi
+
+          if ${{ steps.check-cache.outputs.cache-hit != 'true' }}; then
+            CACHE_LIST=$(gh cache list --key "$WRT_CONFIG-$WRT_INFO" | cut -f 1)
+            for CACHE_KEY in $CACHE_LIST; do
+              gh cache delete $CACHE_KEY
+            done
+            echo "caches cleanup done!"
+          fi
+
+      - name: Update Feeds
+        run: |
+          cd ./wrt/
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Prepare SmartDNS
+        run: |
+          cd ./wrt/
+          
+          # 移除现有smartdns包
+          rm -rf feeds/packages/net/smartdns
+          rm -rf feeds/luci/applications/luci-app-smartdns
+          
+          # 克隆最新smartdns源码
+          git clone https://github.com/xianren78/openwrt-smartdns.git feeds/packages/net/smartdns
+          mv -f feeds/packages/net/smartdns/Makefile.native feeds/packages/net/smartdns/Makefile
+          git clone https://github.com/pymumu/luci-app-smartdns.git feeds/luci/applications/luci-app-smartdns
+          
+          # 更新feeds
+          ./scripts/feeds install -f smartdns
+          ./scripts/feeds install -f luci-app-smartdns
+
+      - name: Replace OpenSSL makefiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ./wrt/
+          OPENSSL_DST="feeds/base/package/libs/openssl"
+          OPENSSL_SRC="feeds/packages/net/smartdns/patch/openssl"
+          [ -d "$OPENSSL_DST" ] || { echo "ERROR: $OPENSSL_DST missing"; exit 1; }
+          [ -f "$OPENSSL_SRC/Makefile" ] || { echo "ERROR: $OPENSSL_SRC/Makefile missing"; exit 1; }
+          [ -f "$OPENSSL_SRC/Config.in" ] || { echo "ERROR: $OPENSSL_SRC/Config.in missing"; exit 1; }
+          rm -f "$OPENSSL_DST/Makefile" "$OPENSSL_DST/Config.in"
+          cp -f "$OPENSSL_SRC/Makefile" "$OPENSSL_DST/Makefile"
+          cp -f "$OPENSSL_SRC/Config.in" "$OPENSSL_DST/Config.in"
+
+      - name: Install Rust
+        run: |
+          cd ./wrt/
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo 'export PATH=/root/.cargo/bin:$PATH' >> $HOME/.profile
+          . $HOME/.profile
+          rustup toolchain install 1.89.0-x86_64-unknown-linux-gnu
+          rustup default 1.89.0-x86_64-unknown-linux-gnu
+          rustup target add ${{ matrix.rust_target }} --toolchain 1.89.0-x86_64-unknown-linux-gnu
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
+          mkdir -p staging_dir/host/bin && ln -sf $(which rustc) staging_dir/host/bin/rustc && ln -sf $(which cargo) staging_dir/host/bin/cargo
+
+      - name: Custom Packages
+        run: |
+          cd ./wrt/package/
+          $GITHUB_WORKSPACE/Scripts/Packages.sh
+          $GITHUB_WORKSPACE/Scripts/Handles.sh
+
+      - name: Custom Settings
+        run: |
+          cd ./wrt/
+          
+          if [[ "${WRT_CONFIG,,}" == *"test"* ]]; then
+            cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt >> .config
+          else
+            cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
+          fi
+          
+          # 添加smartdns配置
+          cat <<EOF >> .config
+          CONFIG_PACKAGE_smartdns=y
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-compat=y
+          CONFIG_PACKAGE_luci-app-smartdns=y
+          CONFIG_PACKAGE_libopenssl=y
+          CONFIG_OPENSSL_WITH_QUIC=y
+          EOF
+          
+          $GITHUB_WORKSPACE/Scripts/Settings.sh
+          make defconfig -j$(nproc) && make clean -j$(nproc)
+
+      - name: SmartDNS Hash Auto-Update
+        run: |
+          cd ./wrt/
+          export PATH=/root/.cargo/bin:$PATH
+          
+          set -e
+          export TERM=dumb LANG=C LC_ALL=C
+          MF="feeds/packages/net/smartdns/Makefile"
+
+          # 辅助函数
+          strip_ansi() { sed -r "s/\x1B\[[0-9;]*[mK]//g" | tr -d "\r"; }
+
+          update_webui_hash() {
+            local sha="$1"
+            # 更新smartdns-webui的MIRROR_HASH
+            awk -v newsha="$sha" "
+              BEGIN{inblk=0}
+              /^define[[:space:]]+Download\/smartdns-webui/ {inblk=1}
+              inblk && /^[[:space:]]*MIRROR_HASH[[:space:]]*:=/ { sub(/:=.*/,\":= \" newsha \"\"); }
+              {print}
+              inblk && /^endef/ {inblk=0}
+            " "$MF" > "$MF.tmp" && mv "$MF.tmp" "$MF"
+            # 同步SMARTDNS_WEBUI_HASH
+            if grep -q "^SMARTDNS_WEBUI_HASH:=" "$MF"; then
+              sed -i -E "s/^SMARTDNS_WEBUI_HASH:=.*/SMARTDNS_WEBUI_HASH:=$sha/" "$MF"
+            else
+              if grep -n "^SMARTDNS_WEBUI_FILE:=" "$MF" >/dev/null; then
+                line=$(grep -n "^SMARTDNS_WEBUI_FILE:=" "$MF" | head -n1 | cut -d: -f1)
+              else
+                line=$(grep -n "^SMARTDNS_WEBUI_VERSION:=" "$MF" | head -n1 | cut -d: -f1)
+              fi
+              awk -v ln="$line" -v s="$sha" "NR==ln{print; print \"SMARTDNS_WEBUI_HASH:=\" s; next} {print}" "$MF" > "$MF.tmp" && mv "$MF.tmp" "$MF"
+            fi
+            echo "[patched] webui hash -> $sha"
+          }
+
+          update_main_hash() {
+            local sha="$1"
+            if grep -q "^PKG_MIRROR_HASH:=" "$MF"; then
+              sed -i -E "s/^PKG_MIRROR_HASH:=.*/PKG_MIRROR_HASH:=$sha/" "$MF"
+            else
+              awk -v s="$sha" "
+                { print }
+                /^PKG_SOURCE_VERSION:=/ && !p { print \"PKG_MIRROR_HASH:=\" s; p=1 }
+              " "$MF" > "$MF.tmp" && mv "$MF.tmp" "$MF"
+            fi
+            if grep -q "^PKG_HASH:=" "$MF"; then
+              sed -i -E "s/^PKG_HASH:=.*/PKG_HASH:=$sha/" "$MF"
+            fi
+            echo "[patched] main hash -> $sha"
+          }
+
+          # 确保.config存在
+          [ -f .config ] || { echo "CONFIG_TARGET_IMAGES=n" > .config; make defconfig; }
+
+          attempt=1; max=5
+          while [ $attempt -le $max ]; do
+            echo ">>> Attempt #$attempt: downloading sources"
+            set +e
+            make package/smartdns/download V=s >dl_raw.log 2>&1
+            ret=$?
+            set -e
+
+            # 清洗日志
+            cat dl_raw.log | strip_ansi > dl.log
+
+            if [ $ret -eq 0 ]; then
+              echo "Download successful."
+              break
+            fi
+
+            # 处理哈希不匹配
+            if grep -qiE "Hash (mismatch|check failed)|Hash mismatch" dl.log; then
+              mism_lines=$(grep -E "Hash mismatch for file ..." dl.log || true)
+              
+              if [ -z "$mism_lines" ]; then
+                mism_lines=$(grep -E "Hash check failed for .*" dl.log || true)
+              fi
+
+              if [ -z "$mism_lines" ]; then
+                echo "Found hash-related error but could not extract lines."
+                tail -n 200 dl.log
+                attempt=$((attempt+1))
+                continue
+              fi
+
+              echo "$mism_lines" | while IFS= read -r line; do
+                fname=$(printf "%s\n" "$line" | sed -nE "s/.*Hash mismatch for file ([^:]+):.*/\1/p")
+                [ -n "$fname" ] || fname=$(printf "%s\n" "$line" | sed -nE "s/.*Hash check failed for ([^ ]*).*/\1/p")
+
+                got=$(printf "%s\n" "$line" | sed -nE "s/.* got ([0-9A-Fa-f]{40,64}).*/\1/p")
+                if [ -z "$got" ] && [ -n "$fname" ]; then
+                  got=$(grep -F "Hash mismatch for file $fname:" dl.log | sed -nE "s/.* got ([0-9A-Fa-f]{40,64}).*/\1/p" | tail -n1)
+                fi
+                if [ -z "$got" ]; then
+                  got=$(sed -nE "s/.* got ([0-9A-Fa-f]{40,64}).*/\1/p" dl.log | tail -n1)
+                fi
+
+                if [ -z "$fname" ] || [ -z "$got" ]; then
+                  echo "Could not extract fname/got from line: $line"
+                  return 0
+                fi
+
+                echo "Mismatch -> file=$fname  got=$got"
+                if printf "%s" "$fname" | grep -q "smartdns-webui-"; then
+                  update_webui_hash "$got"
+                else
+                  update_main_hash "$got"
+                fi
+
+                if [ -f "dl/$fname" ]; then
+                  rm -f "dl/$fname" || true
+                fi
+              done
+            else
+              echo "Download failed (not hash mismatch). Retrying..."
+              tail -n 120 dl.log || true
+            fi
+
+            attempt=$((attempt+1))
+          done
+
+          if [ $attempt -gt $max ]; then
+            echo "Failed to resolve hash mismatch after $max attempts."
+            tail -n 200 dl.log || true
+            exit 1
+          fi
+
+      - name: Download Packages
+        if: env.WRT_TEST != 'true'
+        run: |
+          cd ./wrt/
+          make download -j$(nproc)
+
+      - name: Compile Firmware
+        if: env.WRT_TEST != 'true'
+        run: |
+          cd ./wrt/
+          export PATH=/root/.cargo/bin:$PATH
+          export RUSTC=/root/.cargo/bin/rustc
+          export CARGO=/root/.cargo/bin/cargo
+          export LIBCLANG_PATH=/usr/lib/llvm-11/lib
+          
+          # 先编译smartdns
+          make -j$(nproc) package/smartdns/compile
+          make -j$(nproc) package/luci-app-smartdns/compile
+          
+          # 编译完整固件
+          make -j$(nproc) || make -j$(nproc) V=s
+
+      - name: Machine Information
+        run: |
+          cd ./wrt/
+          echo "======================="
+          lscpu | grep -E "name|Core|Thread"
+          echo "======================="
+          df -h
+          echo "======================="
+          du -h --max-depth=1
+          echo "======================="
+
+      - name: Package Firmware
+        run: |
+          cd ./wrt/ && mkdir ./upload/
+          cp -f ./.config ./upload/Config-"$WRT_CONFIG"-"$WRT_INFO"-"$WRT_BRANCH"-"$WRT_DATE".txt
+
+          if [[ $WRT_TEST != 'true' ]]; then
+            echo "WRT_KVER=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)" >> $GITHUB_ENV
+            echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
+
+            find ./bin/targets/ -iregex ".*\(buildinfo\|json\|sha256sums\|packages\)$" -exec rm -rf {} +
+
+            for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
+              EXT=$(basename $FILE | cut -d '.' -f 2-)
+              NAME=$(basename $FILE | cut -d '.' -f 1 | grep -io "\($WRT_TARGET\).*")
+              NEW_FILE="$WRT_INFO"-"$WRT_BRANCH"-"$NAME"-"$WRT_DATE"."$EXT"
+              mv -f $FILE ./upload/$NEW_FILE
+            done
+
+            find ./bin/targets/ -type f -exec mv -f {} ./upload/ \;
+            make clean -j$(nproc)
+          fi
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          set -euo pipefail
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c 1-7)
+          echo "release_tag=${{ env.WRT_CONFIG }}-${{ env.WRT_INFO }}-${{ env.WRT_BRANCH }}-${{ env.WRT_DATE }}-smartdns-${{ needs.get-smartdns-version.outputs.CUR_VERSION }}" >> $GITHUB_OUTPUT
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Release Firmware
+        uses: softprops/action-gh-release@master
+        if: steps.tag.outputs.status == 'success'
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          files: ./wrt/upload/*.*
+          body: |
+            这是个平台固件包，内含多个设备！
+            请注意选择你需要的设备固件！
+            
+            源码：${{ env.WRT_REPO }}
+            分支：${{ env.WRT_BRANCH }}
+            提交：${{ env.WRT_HASH }}
+            
+            配置：${{ env.WRT_CONFIG }}
+            平台：${{ env.WRT_TARGET }}
+            
+            登录地址：${{ env.WRT_IP }}
+            登录密码：${{ env.WRT_PW }}
+            
+            WIFI名称：${{ env.WRT_SSID }}
+            WIFI密码：${{ env.WRT_WORD }}
+            
+            内核版本：${{ env.WRT_KVER }}
+            插件列表：${{ env.WRT_LIST }}
+            SmartDNS版本：${{ needs.get-smartdns-version.outputs.CUR_VERSION }}
