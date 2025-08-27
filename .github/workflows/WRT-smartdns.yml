@@ -189,7 +189,7 @@ jobs:
         run: |
           set -euo pipefail
           cd ./wrt/
-          OPENSSL_DST="feeds/base/package/libs/openssl"
+          OPENSSL_DST="libs/openssl"
           OPENSSL_SRC="feeds/packages/net/smartdns/patch/openssl"
           [ -d "$OPENSSL_DST" ] || { echo "ERROR: $OPENSSL_DST missing"; exit 1; }
           [ -f "$OPENSSL_SRC/Makefile" ] || { echo "ERROR: $OPENSSL_SRC/Makefile missing"; exit 1; }
