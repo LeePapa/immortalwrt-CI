@@ -1,4 +1,4 @@
-name: OWRT-ALL with SmartDNS
+name: OWRT-with-SmartDNS
 
 on:
   workflow_run:
