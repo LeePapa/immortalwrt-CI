@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        CONFIG: [MEDIATEK, ROCKCHIP, X86]
+        CONFIG: [X86]
         SOURCE: [VIKINGYFY/immortalwrt]
         BRANCH: [owrt]
         include:
@@ -60,22 +60,6 @@ jobs:
             goarch: x86_64
             docker_tag: x86-64
             rust_target: x86_64-unknown-linux-musl
-          - CONFIG: MEDIATEK
-            arch: aarch64
-            target: armsr
-            subtarget: armv8
-            package_arch: aarch64_generic
-            goarch: aarch64
-            docker_tag: aarch64_generic
-            rust_target: aarch64-unknown-linux-musl
-          - CONFIG: ROCKCHIP
-            arch: aarch64
-            target: armsr
-            subtarget: armv8
-            package_arch: aarch64_generic
-            goarch: aarch64
-            docker_tag: aarch64_generic
-            rust_target: aarch64-unknown-linux-musl
     runs-on: ubuntu-latest
     env:
       WRT_CONFIG: ${{ matrix.CONFIG }}
@@ -83,7 +67,7 @@ jobs:
       WRT_NAME: OWRT
       WRT_SSID: OWRT
       WRT_WORD: 12345678
-      WRT_IP: 192.168.10.1
+      WRT_IP: 10.1.6.8
       WRT_PW: 无
       WRT_REPO: https://github.com/${{ matrix.SOURCE }}.git
       WRT_BRANCH: ${{ matrix.BRANCH }}
