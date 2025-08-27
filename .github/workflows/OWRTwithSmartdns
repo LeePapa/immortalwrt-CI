@@ -1,4 +1,5 @@
-name: OWRT-with-SmartDNS
+name: With-SmartDNS
+
 on:
   workflow_run:
     workflows: ["Auto-Clean"]
