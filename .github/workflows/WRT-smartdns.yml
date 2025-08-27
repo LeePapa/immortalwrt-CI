@@ -94,7 +94,10 @@ jobs:
           sudo -E apt -yqq clean
           sudo -E apt -yqq install dos2unix python3-netifaces libfuse-dev tree \
             build-essential ccache git file g++ gawk gettext libncurses-dev \
-            libssl-dev zlib1g-dev zstd docker-ce docker-ce-cli
+            libssl-dev zlib1g-dev zstd docker-ce docker-ce-cli\
+            # Lua编译所需依赖
+            libreadline-dev libncurses5-dev libncursesw5-dev \
+            bison flex libtool automake autoconf
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
           sudo -E systemctl daemon-reload
           sudo -E timedatectl set-timezone "Asia/Shanghai"
@@ -161,10 +164,15 @@ jobs:
             echo "caches cleanup done!"
           fi
 
-      - name: Update Feeds
+      - name: Update Feeds and Fix Lua Package
         run: |
           cd ./wrt/
+          # 更新feeds
           ./scripts/feeds update -a
+          
+          # 强制重新安装Lua包，解决可能的源码问题
+          ./scripts/feeds uninstall lua
+          ./scripts/feeds install -f lua
           ./scripts/feeds install -a
 
       - name: Prepare SmartDNS
@@ -235,6 +243,11 @@ jobs:
           #CONFIG_PACKAGE_luci-app-smartdns=y
           CONFIG_PACKAGE_libopenssl=y
           CONFIG_OPENSSL_WITH_QUIC=y
+          # 确保Lua相关包被选中
+          CONFIG_PACKAGE_lua=y
+          CONFIG_PACKAGE_liblua=y
+          CONFIG_PACKAGE_lua-bit32=y
+          CONFIG_PACKAGE_lua-cjson=y
           EOF
           
           $GITHUB_WORKSPACE/Scripts/Settings.sh
@@ -368,6 +381,16 @@ jobs:
             exit 1
           fi
 
+      - name: Pre-build Lua (解决依赖问题)
+        if: env.WRT_TEST != 'true'
+        run: |
+          cd ./wrt/
+          # 先单独编译Lua主机端包，确保其成功
+          make -j$(nproc) package/utils/lua/host-compile V=s || {
+            echo "Lua主机端编译失败，尝试单线程编译排查问题"
+            make -j1 package/utils/lua/host-compile V=s
+          }
+
       - name: Download Packages
         if: env.WRT_TEST != 'true'
         run: |
@@ -384,8 +407,11 @@ jobs:
           export LIBCLANG_PATH=/usr/lib/llvm-11/lib
           
           # 先编译smartdns
-          make -j$(nproc) package/smartdns/compile
-          make -j$(nproc) package/luci-app-smartdns/compile
+          make -j$(nproc) package/smartdns/compile V=s || {
+            echo "SmartDNS编译失败，尝试单线程编译排查问题"
+            make -j1 package/smartdns/compile V=s
+          }
+          make -j$(nproc) package/luci-app-smartdns/compile V=s
           
           # 编译完整固件
           make -j$(nproc) || make -j$(nproc) V=s
