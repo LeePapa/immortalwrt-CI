@@ -1,5 +1,5 @@
 #CI项目
-name: smartdns
+name: WRT-smartdns
 
 #CI计划
 on:
