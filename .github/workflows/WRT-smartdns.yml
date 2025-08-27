@@ -94,8 +94,7 @@ jobs:
           sudo -E apt -yqq clean
           sudo -E apt -yqq install dos2unix python3-netifaces libfuse-dev tree \
             build-essential ccache git file g++ gawk gettext libncurses-dev \
-            libssl-dev zlib1g-dev zstd docker-ce docker-ce-cli\
-            # Lua编译所需依赖
+            libssl-dev zlib1g-dev zstd docker-ce docker-ce-cli \
             libreadline-dev libncurses5-dev libncursesw5-dev \
             bison flex libtool automake autoconf
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
