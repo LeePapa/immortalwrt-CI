@@ -385,7 +385,7 @@ jobs:
         run: |
           cd ./wrt/
           # 先单独编译Lua主机端包，确保其成功
-          make -j$(nproc) package/utils/lua/host-compile V=s || {
+          make -j$(nproc) feeds/packages/lang/lua/host-compile V=s || {
             echo "Lua主机端编译失败，尝试单线程编译排查问题"
             make -j1 package/utils/lua/host-compile V=s
           }
