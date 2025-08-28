@@ -380,39 +380,39 @@ jobs:
             exit 1
           fi
 
-          - name: Pre-build Lua and dependencies (解决路径问题)
-            if: env.WRT_TEST != 'true'
-            run: |
-              cd ./wrt/
-              
-              # 确保配置正确生成
-              # make defconfig
-              
-              # 清理可能的残留文件
-              make package/lua/clean || true
-              make feeds/packages/lang/lua/clean || true
-              
-              # 尝试通过工具链编译来自动处理依赖
-              make toolchain/compile V=s || {
-                echo "工具链编译失败，尝试单线程编译"
-                make toolchain/compile V=s -j1
+      - name: Pre-build Lua and dependencies
+        if: env.WRT_TEST != 'true'
+        run: |
+          cd ./wrt/
+          
+          # 确保配置正确生成
+          # make defconfig
+          
+          # 清理可能的残留文件
+          make package/lua/clean || true
+          make feeds/packages/lang/lua/clean || true
+          
+          # 尝试通过工具链编译来自动处理依赖
+          make toolchain/compile V=s || {
+            echo "工具链编译失败，尝试单线程编译"
+            make toolchain/compile V=s -j1
+          }
+          
+          # 查找系统中所有 Lua 相关包并编译
+          LUA_PACKAGES=$(find ./package ./feeds -name "lua" -type d | grep -v "build_dir" | grep -v "staging_dir")
+          if [ -n "$LUA_PACKAGES" ]; then
+            for pkg in $LUA_PACKAGES; do
+              echo "尝试编译 Lua 包: $pkg"
+              make ${pkg}/host-compile V=s || {
+                echo "单个 Lua 包编译失败，继续尝试其他包"
               }
-              
-              # 查找系统中所有 Lua 相关包并编译
-              LUA_PACKAGES=$(find ./package ./feeds -name "lua" -type d | grep -v "build_dir" | grep -v "staging_dir")
-              if [ -n "$LUA_PACKAGES" ]; then
-                for pkg in $LUA_PACKAGES; do
-                  echo "尝试编译 Lua 包: $pkg"
-                  make ${pkg}/host-compile V=s || {
-                    echo "单个 Lua 包编译失败，继续尝试其他包"
-                  }
-                done
-              else
-                echo "未找到 Lua 包，尝试通过全局编译解决依赖"
-                make -j$(nproc) package/luci-base/compile V=s || {
-                  make -j1 package/luci-base/compile V=s
-                }
-              fi
+            done
+          else
+            echo "未找到 Lua 包，尝试通过全局编译解决依赖"
+            make -j$(nproc) package/luci-base/compile V=s || {
+              make -j1 package/luci-base/compile V=s
+            }
+          fi
 
       - name: Download Packages
         if: env.WRT_TEST != 'true'
